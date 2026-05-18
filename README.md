@@ -92,7 +92,3 @@ task-manager/
 | Backend Developer     |             |
 | Frontend Developer    |             |
 | QA / Tester           |             |
-
-## Licencja
-
-Projekt akademicki — Uniwersytet Warszawski.
