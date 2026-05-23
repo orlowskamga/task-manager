@@ -16,6 +16,11 @@ export default function Navbar() {
             <Link to="/" className="hover:text-brand-200 transition-colors">
               Tablice
             </Link>
+            {user.role === 'admin' && (
+              <Link to="/admin" className="hover:text-brand-200 transition-colors">
+                ⚙️ Admin
+              </Link>
+            )}
             <Link to="/profile" className="hover:text-brand-200 transition-colors">
               {user.display_name}
             </Link>
