@@ -5,8 +5,10 @@ import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import BoardView from './pages/BoardView'
+import BoardSettings from './pages/BoardSettings'
 import Profile from './pages/Profile'
 import ChangePassword from './pages/ChangePassword'
+import AdminPanel from './pages/AdminPanel'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -38,8 +40,10 @@ export default function App() {
           <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
           <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
           <Route path="/boards/:boardId" element={<PrivateRoute><BoardView /></PrivateRoute>} />
+          <Route path="/boards/:boardId/settings" element={<PrivateRoute><BoardSettings /></PrivateRoute>} />
           <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route path="/change-password" element={<PrivateRoute><ChangePassword /></PrivateRoute>} />
+          <Route path="/admin" element={<PrivateRoute><AdminPanel /></PrivateRoute>} />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
       </main>

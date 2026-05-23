@@ -64,6 +64,10 @@ class BoardCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
 
 
+class BoardUpdate(BaseModel):
+    name: str | None = Field(None, min_length=1, max_length=200)
+
+
 class BoardOut(BaseModel):
     id: int
     name: str
@@ -98,7 +102,6 @@ class TaskUpdate(BaseModel):
 
 
 class TaskMove(BaseModel):
-    """Zmiana statusu (kolumny) i pozycji zadania — wywoływane przy drag & drop."""
     status: TaskStatus
     position: int = Field(ge=0)
 

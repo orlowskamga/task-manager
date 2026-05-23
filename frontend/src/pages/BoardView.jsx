@@ -61,11 +61,9 @@ export default function BoardView() {
     const newIndex = destination.index
     const taskId = parseInt(draggableId)
 
-    // Optymistyczny update — oblicz nową pozycję
     const task = tasks.find((t) => t.id === taskId)
     if (!task) return
 
-    // Zaktualizuj lokalnie
     const updatedTasks = tasks.map((t) => {
       if (t.id === taskId) return { ...t, status: newStatus, position: newIndex }
       return t
@@ -77,7 +75,6 @@ export default function BoardView() {
         status: newStatus,
         position: newIndex,
       })
-      // Przeładuj żeby zsynchronizować pozycje
       fetchTasks()
     } catch {
       toast.error('Nie udało się przenieść zadania')
@@ -142,10 +139,20 @@ export default function BoardView() {
           <Link to="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
             ← Tablice
           </Link>
-          <h1 className="text-2xl font-bold mt-1">{board.name}</h1>
+          <div className="flex items-center gap-3 mt-1">
+            <h1 className="text-2xl font-bold">{board.name}</h1>
+            <Link
+              to={`/boards/${boardId}/settings`}
+              className="text-gray-300 hover:text-gray-500 transition-colors"
+              title="Ustawienia tablicy"
+            >
+              ⚙️
+            </Link>
+          </div>
           {totalTasks > 0 && (
             <p className="text-xs text-gray-400 mt-0.5">
               {doneTasks}/{totalTasks} ukończonych
+              {members.length > 0 && ` · ${members.length} członków`}
             </p>
           )}
         </div>

@@ -6,9 +6,15 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Board, User
-from app.schemas import BoardCreate, BoardOut, BoardDetail
+from app.schemas import BoardCreate, BoardOut, BoardDetail, BoardUpdate
 
 router = APIRouter(prefix="/api/boards", tags=["boards"])
+
+
+def _check_board_admin(board: Board, user: User):
+    """Sprawdza, czy użytkownik jest właścicielem tablicy lub adminem systemu."""
+    if board.owner_id != user.id and user.role != "admin":
+        raise HTTPException(status_code=403, detail="Brak uprawnień do tej tablicy")
 
 
 @router.post("/", response_model=BoardOut, status_code=201)
@@ -56,6 +62,27 @@ async def get_board(
     return board
 
 
+@router.patch("/{board_id}", response_model=BoardOut)
+async def update_board(
+    board_id: int,
+    data: BoardUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Zmiana nazwy tablicy (właściciel lub admin)."""
+    result = await db.execute(select(Board).where(Board.id == board_id))
+    board = result.scalar_one_or_none()
+    if not board:
+        raise HTTPException(status_code=404, detail="Tablica nie znaleziona")
+    _check_board_admin(board, current_user)
+
+    if data.name is not None:
+        board.name = data.name
+    await db.flush()
+    await db.refresh(board)
+    return board
+
+
 @router.post("/{board_id}/members/{user_id}", status_code=204)
 async def add_member(
     board_id: int,
@@ -69,8 +96,7 @@ async def add_member(
     board = result.scalar_one_or_none()
     if not board:
         raise HTTPException(status_code=404, detail="Tablica nie znaleziona")
-    if board.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Brak uprawnień")
+    _check_board_admin(board, current_user)
 
     user_result = await db.execute(select(User).where(User.id == user_id))
     user = user_result.scalar_one_or_none()
@@ -79,6 +105,35 @@ async def add_member(
 
     if user not in board.members:
         board.members.append(user)
+    await db.flush()
+
+
+@router.delete("/{board_id}/members/{user_id}", status_code=204)
+async def remove_member(
+    board_id: int,
+    user_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Usunięcie członka z tablicy (właściciel lub admin)."""
+    result = await db.execute(
+        select(Board).options(selectinload(Board.members)).where(Board.id == board_id)
+    )
+    board = result.scalar_one_or_none()
+    if not board:
+        raise HTTPException(status_code=404, detail="Tablica nie znaleziona")
+    _check_board_admin(board, current_user)
+
+    if user_id == board.owner_id:
+        raise HTTPException(status_code=400, detail="Nie można usunąć właściciela tablicy")
+
+    user_result = await db.execute(select(User).where(User.id == user_id))
+    user = user_result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="Użytkownik nie znaleziony")
+
+    if user in board.members:
+        board.members.remove(user)
     await db.flush()
 
 
@@ -92,7 +147,6 @@ async def delete_board(
     board = result.scalar_one_or_none()
     if not board:
         raise HTTPException(status_code=404, detail="Tablica nie znaleziona")
-    if board.owner_id != current_user.id and current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Brak uprawnień")
+    _check_board_admin(board, current_user)
     await db.delete(board)
     await db.flush()
