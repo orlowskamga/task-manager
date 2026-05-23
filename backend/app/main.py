@@ -4,11 +4,11 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 
 from app.config import settings
-from app.routers import auth, users, boards, tasks
+from app.routers import auth, users, boards, tasks, notifications
 
 app = FastAPI(
     title="Task Manager API",
-    version="0.2.0",
+    version="0.3.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
@@ -25,11 +25,11 @@ app.include_router(auth.router)
 app.include_router(users.router)
 app.include_router(boards.router)
 app.include_router(tasks.router)
+app.include_router(notifications.router)
 
 
 @app.exception_handler(ValidationError)
 async def validation_error_handler(request: Request, exc: ValidationError):
-    """Zwraca czytelne błędy walidacji Pydantic."""
     errors = []
     for err in exc.errors():
         field = " → ".join(str(loc) for loc in err["loc"])
