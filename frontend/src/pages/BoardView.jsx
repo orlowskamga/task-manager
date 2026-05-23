@@ -2,7 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd'
 import api from '../api/client'
+import { useToast } from '../components/Toast'
 import TaskModal from '../components/TaskModal'
+import TaskCard from '../components/TaskCard'
+import FilterBar from '../components/FilterBar'
 
 const COLUMNS = [
   { id: 'todo', label: 'Do zrobienia', color: 'bg-gray-100', accent: 'border-gray-400' },
@@ -10,21 +13,15 @@ const COLUMNS = [
   { id: 'done', label: 'Zrobione', color: 'bg-green-50', accent: 'border-green-500' },
 ]
 
-const PRIORITY_BADGE = {
-  low: 'bg-gray-200 text-gray-600',
-  medium: 'bg-yellow-100 text-yellow-700',
-  high: 'bg-red-100 text-red-700',
-}
-
-const PRIORITY_LABEL = { low: 'Niski', medium: 'Średni', high: 'Wysoki' }
-
 export default function BoardView() {
   const { boardId } = useParams()
+  const toast = useToast()
   const [board, setBoard] = useState(null)
   const [tasks, setTasks] = useState([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editingTask, setEditingTask] = useState(null)
   const [members, setMembers] = useState([])
+  const [filters, setFilters] = useState({ search: null, priority: null, assignee_id: null })
 
   const fetchBoard = useCallback(async () => {
     try {
@@ -38,33 +35,53 @@ export default function BoardView() {
 
   const fetchTasks = useCallback(async () => {
     try {
-      const { data } = await api.get(`/api/boards/${boardId}/tasks/`)
+      const params = {}
+      if (filters.search) params.search = filters.search
+      if (filters.priority) params.priority = filters.priority
+      if (filters.assignee_id) params.assignee_id = filters.assignee_id
+      const { data } = await api.get(`/api/boards/${boardId}/tasks/`, { params })
       setTasks(data)
     } catch (err) {
       console.error(err)
     }
-  }, [boardId])
+  }, [boardId, filters])
 
-  useEffect(() => {
-    fetchBoard()
-    fetchTasks()
-  }, [fetchBoard, fetchTasks])
+  useEffect(() => { fetchBoard() }, [fetchBoard])
+  useEffect(() => { fetchTasks() }, [fetchTasks])
+
+  const getColumnTasks = (colId) =>
+    tasks
+      .filter((t) => t.status === colId)
+      .sort((a, b) => a.position - b.position)
 
   const onDragEnd = async (result) => {
     if (!result.destination) return
     const { draggableId, destination } = result
     const newStatus = destination.droppableId
+    const newIndex = destination.index
     const taskId = parseInt(draggableId)
 
-    // Optimistic update
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
-    )
+    // Optymistyczny update — oblicz nową pozycję
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task) return
+
+    // Zaktualizuj lokalnie
+    const updatedTasks = tasks.map((t) => {
+      if (t.id === taskId) return { ...t, status: newStatus, position: newIndex }
+      return t
+    })
+    setTasks(updatedTasks)
 
     try {
-      await api.patch(`/api/boards/${boardId}/tasks/${taskId}`, { status: newStatus })
+      await api.put(`/api/boards/${boardId}/tasks/${taskId}/move`, {
+        status: newStatus,
+        position: newIndex,
+      })
+      // Przeładuj żeby zsynchronizować pozycje
+      fetchTasks()
     } catch {
-      fetchTasks() // revert on error
+      toast.error('Nie udało się przenieść zadania')
+      fetchTasks()
     }
   }
 
@@ -82,13 +99,15 @@ export default function BoardView() {
     try {
       if (editingTask) {
         await api.patch(`/api/boards/${boardId}/tasks/${editingTask.id}`, data)
+        toast.success('Zadanie zaktualizowane')
       } else {
         await api.post(`/api/boards/${boardId}/tasks/`, data)
+        toast.success('Zadanie utworzone')
       }
       setModalOpen(false)
       fetchTasks()
     } catch (err) {
-      console.error(err)
+      toast.error('Błąd zapisu zadania')
     }
   }
 
@@ -96,10 +115,11 @@ export default function BoardView() {
     if (!confirm('Usunąć to zadanie?')) return
     try {
       await api.delete(`/api/boards/${boardId}/tasks/${taskId}`)
+      toast.success('Zadanie usunięte')
       setModalOpen(false)
       fetchTasks()
     } catch (err) {
-      console.error(err)
+      toast.error('Błąd usuwania')
     }
   }
 
@@ -111,15 +131,23 @@ export default function BoardView() {
     )
   }
 
+  const totalTasks = tasks.length
+  const doneTasks = tasks.filter((t) => t.status === 'done').length
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <Link to="/" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
             ← Tablice
           </Link>
           <h1 className="text-2xl font-bold mt-1">{board.name}</h1>
+          {totalTasks > 0 && (
+            <p className="text-xs text-gray-400 mt-0.5">
+              {doneTasks}/{totalTasks} ukończonych
+            </p>
+          )}
         </div>
         <button
           onClick={openCreate}
@@ -129,11 +157,14 @@ export default function BoardView() {
         </button>
       </div>
 
+      {/* Filters */}
+      <FilterBar members={members} filters={filters} onChange={setFilters} />
+
       {/* Kanban columns */}
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {COLUMNS.map((col) => {
-            const colTasks = tasks.filter((t) => t.status === col.id)
+            const colTasks = getColumnTasks(col.id)
             return (
               <Droppable key={col.id} droppableId={col.id}>
                 {(provided, snapshot) => (
@@ -151,6 +182,12 @@ export default function BoardView() {
                       </span>
                     </div>
 
+                    {colTasks.length === 0 && !snapshot.isDraggingOver && (
+                      <div className="text-center text-gray-300 text-xs py-8">
+                        Przeciągnij tutaj lub utwórz nowe
+                      </div>
+                    )}
+
                     {colTasks.map((task, index) => (
                       <Draggable key={task.id} draggableId={String(task.id)} index={index}>
                         {(prov, snap) => (
@@ -158,34 +195,12 @@ export default function BoardView() {
                             ref={prov.innerRef}
                             {...prov.draggableProps}
                             {...prov.dragHandleProps}
-                            onClick={() => openEdit(task)}
-                            className={`bg-white rounded-lg p-3 mb-2 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition-shadow ${
-                              snap.isDragging ? 'shadow-lg rotate-2' : ''
-                            }`}
                           >
-                            <p className="font-medium text-sm leading-snug">{task.title}</p>
-                            {task.description && (
-                              <p className="text-xs text-gray-400 mt-1 line-clamp-2">
-                                {task.description}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-2 mt-2 flex-wrap">
-                              <span
-                                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${PRIORITY_BADGE[task.priority]}`}
-                              >
-                                {PRIORITY_LABEL[task.priority]}
-                              </span>
-                              {task.due_date && (
-                                <span className="text-[10px] text-gray-400">
-                                  📅 {new Date(task.due_date).toLocaleDateString('pl-PL')}
-                                </span>
-                              )}
-                              {task.assignee && (
-                                <span className="text-[10px] text-gray-400">
-                                  👤 {task.assignee.display_name}
-                                </span>
-                              )}
-                            </div>
+                            <TaskCard
+                              task={task}
+                              onClick={openEdit}
+                              isDragging={snap.isDragging}
+                            />
                           </div>
                         )}
                       </Draggable>

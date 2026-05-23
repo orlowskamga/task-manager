@@ -1,31 +1,68 @@
 import { useState } from 'react'
 
+const STATUS_OPTIONS = [
+  { value: 'todo', label: 'Do zrobienia' },
+  { value: 'in_progress', label: 'W trakcie' },
+  { value: 'done', label: 'Zrobione' },
+]
+
 export default function TaskModal({ task, members, onSave, onDelete, onClose }) {
   const [form, setForm] = useState({
     title: task?.title || '',
     description: task?.description || '',
     priority: task?.priority || 'medium',
+    status: task?.status || 'todo',
     due_date: task?.due_date ? task.due_date.slice(0, 16) : '',
     assignee_id: task?.assignee_id || '',
   })
+  const [errors, setErrors] = useState({})
 
-  const set = (field) => (e) => setForm({ ...form, [field]: e.target.value })
+  const set = (field) => (e) => {
+    setForm({ ...form, [field]: e.target.value })
+    setErrors((prev) => ({ ...prev, [field]: undefined }))
+  }
+
+  const validate = () => {
+    const errs = {}
+    if (!form.title.trim()) errs.title = 'Tytuł jest wymagany'
+    if (form.title.length > 300) errs.title = 'Tytuł max 300 znaków'
+    return errs
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    const errs = validate()
+    setErrors(errs)
+    if (Object.keys(errs).length > 0) return
+
     const payload = {
-      ...form,
+      title: form.title.trim(),
+      description: form.description,
+      priority: form.priority,
       assignee_id: form.assignee_id ? parseInt(form.assignee_id) : null,
       due_date: form.due_date ? new Date(form.due_date).toISOString() : null,
+    }
+    // Status tylko przy edycji — nowe zadania zawsze startują jako "todo"
+    if (task) {
+      payload.status = form.status
     }
     onSave(payload)
   }
 
+  // Zamknij na Escape
+  const handleKeyDown = (e) => {
+    if (e.key === 'Escape') onClose()
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+      onKeyDown={handleKeyDown}
+    >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[90vh] overflow-y-auto"
       >
         <h2 className="text-lg font-bold mb-4">
           {task ? 'Edytuj zadanie' : 'Nowe zadanie'}
@@ -37,10 +74,14 @@ export default function TaskModal({ task, members, onSave, onDelete, onClose }) 
             <input
               type="text"
               required
+              autoFocus
               value={form.title}
               onChange={set('title')}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none transition"
+              className={`w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none transition
+                ${errors.title ? 'border-red-400' : 'border-gray-300'}`}
+              placeholder="Co trzeba zrobić?"
             />
+            {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
           </div>
 
           <div>
@@ -50,6 +91,7 @@ export default function TaskModal({ task, members, onSave, onDelete, onClose }) 
               value={form.description}
               onChange={set('description')}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none transition resize-none"
+              placeholder="Szczegóły, notatki..."
             />
           </div>
 
@@ -61,11 +103,26 @@ export default function TaskModal({ task, members, onSave, onDelete, onClose }) 
                 onChange={set('priority')}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none transition"
               >
-                <option value="low">Niski</option>
-                <option value="medium">Średni</option>
-                <option value="high">Wysoki</option>
+                <option value="low">⚪ Niski</option>
+                <option value="medium">🟡 Średni</option>
+                <option value="high">🔴 Wysoki</option>
               </select>
             </div>
+
+            {task && (
+              <div>
+                <label className="block text-sm font-medium mb-1">Status</label>
+                <select
+                  value={form.status}
+                  onChange={set('status')}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 outline-none transition"
+                >
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>{s.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium mb-1">Termin</label>
@@ -93,6 +150,14 @@ export default function TaskModal({ task, members, onSave, onDelete, onClose }) 
               ))}
             </select>
           </div>
+
+          {/* Metadane przy edycji */}
+          {task && (
+            <div className="text-[10px] text-gray-300 pt-1 space-y-0.5">
+              <p>Utworzono: {new Date(task.created_at).toLocaleString('pl-PL')}</p>
+              <p>Ostatnia zmiana: {new Date(task.updated_at).toLocaleString('pl-PL')}</p>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 pt-3">
             <button
