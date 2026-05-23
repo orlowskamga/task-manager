@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import NotificationBell from './NotificationBell'
 
 export default function Navbar() {
   const { user, logout } = useAuth()
@@ -21,6 +22,7 @@ export default function Navbar() {
                 ⚙️ Admin
               </Link>
             )}
+            <NotificationBell />
             <Link to="/profile" className="hover:text-brand-200 transition-colors">
               {user.display_name}
             </Link>
