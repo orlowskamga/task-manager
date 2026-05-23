@@ -97,6 +97,12 @@ class TaskUpdate(BaseModel):
     assignee_id: int | None = None
 
 
+class TaskMove(BaseModel):
+    """Zmiana statusu (kolumny) i pozycji zadania — wywoływane przy drag & drop."""
+    status: TaskStatus
+    position: int = Field(ge=0)
+
+
 class TaskOut(BaseModel):
     id: int
     board_id: int
@@ -104,6 +110,7 @@ class TaskOut(BaseModel):
     description: str
     status: TaskStatus
     priority: TaskPriority
+    position: int
     due_date: datetime | None
     assignee_id: int | None
     assignee: UserOut | None = None

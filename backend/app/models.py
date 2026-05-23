@@ -80,6 +80,7 @@ class Task(Base):
     description = Column(Text, default="")
     status = Column(Enum(TaskStatus), default=TaskStatus.todo, nullable=False)
     priority = Column(Enum(TaskPriority), default=TaskPriority.medium, nullable=False)
+    position = Column(Integer, default=0, nullable=False)
     due_date = Column(DateTime(timezone=True), nullable=True)
     assignee_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
