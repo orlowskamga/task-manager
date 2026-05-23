@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
 
 from app.models import RoleEnum, TaskStatus, TaskPriority
 
@@ -9,7 +9,14 @@ from app.models import RoleEnum, TaskStatus, TaskPriority
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=128)
+    password_confirm: str = Field(min_length=6, max_length=128)
     display_name: str = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.password != self.password_confirm:
+            raise ValueError("Hasła nie są identyczne")
+        return self
 
 
 class UserLogin(BaseModel):
@@ -20,6 +27,18 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=6, max_length=128)
+    new_password_confirm: str = Field(min_length=6, max_length=128)
+
+    @model_validator(mode="after")
+    def passwords_match(self):
+        if self.new_password != self.new_password_confirm:
+            raise ValueError("Nowe hasła nie są identyczne")
+        return self
 
 
 # ---------- User ----------

@@ -1,24 +1,30 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../components/Toast'
 import api from '../api/client'
 
 export default function Profile() {
-  const { user, logout } = useAuth()
+  const { user, refreshUser } = useAuth()
+  const toast = useToast()
   const [displayName, setDisplayName] = useState(user?.display_name || '')
-  const [saved, setSaved] = useState(false)
-  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
-    setSaved(false)
+    if (!displayName.trim()) {
+      toast.error('Nazwa nie może być pusta')
+      return
+    }
+    setSubmitting(true)
     try {
-      await api.patch('/api/users/me', { display_name: displayName })
-      setSaved(true)
-      // Reload page to refresh user context
-      setTimeout(() => window.location.reload(), 600)
+      await api.patch('/api/users/me', { display_name: displayName.trim() })
+      toast.success('Profil zaktualizowany')
+      await refreshUser()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Błąd zapisu')
+      toast.error(err.response?.data?.detail || 'Błąd zapisu')
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -58,16 +64,23 @@ export default function Profile() {
           />
         </div>
 
-        {error && <div className="bg-red-50 text-red-700 text-sm rounded-lg px-4 py-2">{error}</div>}
-        {saved && <div className="bg-green-50 text-green-700 text-sm rounded-lg px-4 py-2">Zapisano!</div>}
-
         <button
           type="submit"
-          className="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-lg transition-colors"
+          disabled={submitting}
+          className="w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50"
         >
-          Zapisz
+          {submitting ? 'Zapisuję...' : 'Zapisz'}
         </button>
       </form>
+
+      <div className="mt-4 text-center">
+        <Link
+          to="/change-password"
+          className="text-sm text-brand-600 hover:underline font-medium"
+        >
+          Zmień hasło →
+        </Link>
+      </div>
     </div>
   )
 }
