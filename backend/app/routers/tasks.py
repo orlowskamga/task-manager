@@ -123,8 +123,10 @@ async def update_task(
         setattr(task, field, value)
 
     await db.flush()
-    await db.refresh(task, attribute_names=["assignee"])
-    return task
+    result2 = await db.execute(
+        select(Task).options(selectinload(Task.assignee)).where(Task.id == task_id)
+    )
+    return result2.scalar_one()
 
 
 @router.put("/{task_id}/move", response_model=TaskOut)
@@ -180,8 +182,10 @@ async def move_task(
     task.position = new_position
 
     await db.flush()
-    await db.refresh(task, attribute_names=["assignee"])
-    return task
+    result2 = await db.execute(
+        select(Task).options(selectinload(Task.assignee)).where(Task.id == task_id)
+    )
+    return result2.scalar_one()
 
 
 @router.delete("/{task_id}", status_code=204)
