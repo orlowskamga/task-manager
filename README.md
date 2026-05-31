@@ -1,7 +1,6 @@
 # Task Manager — System do zespołowego zarządzania zadaniami
 
 Aplikacja webowa do organizacji pracy w małych zespołach projektowych.  
-Tablica Kanban z drag & drop, autoryzacja JWT, role użytkowników.
 
 ## Stos technologiczny
 
@@ -59,9 +58,8 @@ task-manager/
 │   │   ├── pages/      # Login, Register, Dashboard, BoardView, Profile
 │   │   ├── context/    # AuthContext (stan użytkownika)
 │   │   └── api/        # klient HTTP (axios)
-│   └── Dockerfile
-├── docs/               # dokumentacja projektu
-├── docker-compose.yml  # orchestracja usług
+│   └── Dockerfile              
+├── docker-compose.yml  
 └── README.md
 ```
 
@@ -86,9 +84,9 @@ task-manager/
 
 ## Zespół
 
-| Rola                  | Osoba       |
-|-----------------------|-------------|
-| Project Manager       |             |
-| Backend Developer     |             |
-| Frontend Developer    |             |
-| QA / Tester           |             |
+| Rola                  | Osoba              |
+|-----------------------|--------------------|
+| Project Manager       |Orłowska Małgorzata |
+| Backend Developer     |Napiórkowski Dawid  |
+| Frontend Developer    |Błoński Daniel      |
+| QA / Tester           |Karabasz Albert     |
